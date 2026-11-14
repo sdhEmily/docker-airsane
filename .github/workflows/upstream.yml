@@ -60,7 +60,7 @@ jobs:
       - name: Check existing image tags
         id: check
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/airsane
+          IMAGE: ghcr.io/sdhemily/airsane
           SHORT: ${{ steps.upstream.outputs.short }}
           RELEASE: ${{ steps.upstream.outputs.release }}
         run: |
@@ -96,7 +96,7 @@ jobs:
           build-args: |
             AIRSANE_TAG=${{ steps.upstream.outputs.sha }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/airsane:${{ steps.upstream.outputs.short }}
+            ghcr.io/sdhemily/airsane:${{ steps.upstream.outputs.short }}
           cache-from: type=gha,scope=airsane
           cache-to: type=gha,mode=max,scope=airsane
 
