@@ -18,7 +18,7 @@ RUN <<-EOT sh
 		-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 	apt-get clean && rm -rf /var/lib/apt/lists/* /var/lib/apt/lists/*
 
-	wget ${AIRSANE_REPO}/archive/refs/tags/${AIRSANE_TAG}.tar.gz -O - \
+	wget ${AIRSANE_REPO}/archive/${AIRSANE_TAG}.tar.gz -O - \
 		| tar -xzv --strip-components=1
 	mkdir ./build && cd ./build && cmake .. && make
 EOT
