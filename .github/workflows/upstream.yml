@@ -66,8 +66,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-
           if docker buildx imagetools inspect "$IMAGE:$SHORT" \
               >/dev/null 2>&1; then
             echo "commit=false" >> "$GITHUB_OUTPUT"
@@ -110,7 +108,7 @@ jobs:
           build-args: |
             AIRSANE_TAG=${{ steps.upstream.outputs.release }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/airsane:${{ steps.upstream.outputs.release }}
-            ghcr.io/${{ github.repository_owner }}/airsane:latest
+            ghcr.io/sdhemily/airsane:${{ steps.upstream.outputs.release }}
+            ghcr.io/sdhemily/airsane:latest
           cache-from: type=gha,scope=airsane
           cache-to: type=gha,mode=max,scope=airsane
