@@ -1,0 +1,116 @@
+
+name: AirSane Upstream
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: airsane-upstream
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check upstream
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          API="https://api.github.com/repos/SimulPiscator/AirSane"
+
+          SHA=$(gh api "repos/SimulPiscator/AirSane/commits/master" \
+            --jq '.sha')
+
+          SHORT="${SHA:0:7}"
+
+          RELEASE=$(gh api \
+            "repos/SimulPiscator/AirSane/releases/latest" \
+            --jq '.tag_name')
+
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+
+          echo "Upstream commit: $SHORT"
+          echo "Latest release: $RELEASE"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check existing image tags
+        id: check
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/airsane
+          SHORT: ${{ steps.upstream.outputs.short }}
+          RELEASE: ${{ steps.upstream.outputs.release }}
+        run: |
+          set -euo pipefail
+
+          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+
+          if docker buildx imagetools inspect "$IMAGE:$SHORT" \
+              >/dev/null 2>&1; then
+            echo "commit=false" >> "$GITHUB_OUTPUT"
+            echo "Commit $SHORT already published"
+          else
+            echo "commit=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if docker buildx imagetools inspect "$IMAGE:$RELEASE" \
+              >/dev/null 2>&1 &&
+             docker buildx imagetools inspect "$IMAGE:latest" \
+              >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Release $RELEASE already published"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build new commit
+        if: steps.check.outputs.commit == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            AIRSANE_TAG=${{ steps.upstream.outputs.sha }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/airsane:${{ steps.upstream.outputs.short }}
+          cache-from: type=gha,scope=airsane
+          cache-to: type=gha,mode=max,scope=airsane
+
+      - name: Build latest release
+        if: steps.check.outputs.release == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            AIRSANE_TAG=${{ steps.upstream.outputs.release }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/airsane:${{ steps.upstream.outputs.release }}
+            ghcr.io/${{ github.repository_owner }}/airsane:latest
+          cache-from: type=gha,scope=airsane
+          cache-to: type=gha,mode=max,scope=airsane
